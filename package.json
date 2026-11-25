@@ -1,0 +1,13 @@
+
+{
+  "name": "yummiko",
+  "version": "1.0.0",
+  "description": "Assistente pessoal Yummiko",
+  "main": "electron.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^latest"
+  }
+}
