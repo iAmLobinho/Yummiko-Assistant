@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090914">
+  <meta name="description" content="Assistente virtual responsiva para computador e celular.">
+  <title>Yummiko — Assistente Virtual</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><div class="brand-mark">✦</div><span>Yummiko</span></div>
+      <button class="new-chat" id="newChatBtn">＋
+         <span>Nova conversa</span></button>
+      <div class="side-label">ATALHOS</div>
+      <button class="side-link" data-prompt="Que horas são?">◷ <span>Horário</span></button>
+      <button class="side-link" data-prompt="Que dia é hoje?">▦ <span>Data de hoje</span></button>
+      <button class="side-link" data-prompt="O que você pode fazer?">✧ <span>O que você pode fazer?</span></button>
+      <div class="sidebar-bottom">
+        <div class="status-dot"></div><span>Assistente pronta</span>
+        <small>Versão 1.0 · Local</small>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">☰</button>
+        <div class="mobile-brand">✦ Yummiko</div>
+        <div class="top-status"><span class="status-dot"></span> Online neste dispositivo</div>
+      </header>
+
+      <section class="chat-area" id="chatArea">
+        <div class="welcome" id="welcome">
+          <div class="welcome-icon">✦</div>
+          <p class="eyebrow">SUA ASSISTENTE PESSOAL</p>
+          <h1>Olá! Como posso <span>ajudar?</span></h1>
+          <p class="welcome-copy">Sou a Yummiko. Posso conversar, responder a comandos simples e ajudar você a acessar ferramentas.</p>
+          <div class="suggestions">
+            <button class="suggestion" data-prompt="Que horas são?"><b>◷</b><span><strong>Ver as horas</strong><small>Descubra o horário atual</small></span><i>↗</i></button>
+            <button class="suggestion" data-prompt="Me conte uma curiosidade"><b>✧</b><span><strong>Uma curiosidade</strong><small>Aprenda algo interessante</small></span><i>↗</i></button>
+            <button class="suggestion" data-prompt="O que você pode fazer?"><b>⌘</b><span><strong>Ver comandos</strong><small>Conheça minhas funções</small></span><i>↗</i></button>
+          </div>
+        </div>
+        <div class="messages" id="messages" aria-live="polite"></div>
+      </section>
+
+      <section class="composer-wrap">
+        <div class="composer">
+          <textarea id="messageInput" rows="1" placeholder="Converse com a Yummiko..." aria-label="Digite sua mensagem"></textarea>
+          <div class="composer-actions">
+            <span class="hint">Enter para enviar · Shift + Enter para nova linha</span>
+            <div class="action-buttons">
+              <button class="icon-btn mic-btn" id="micBtn" title="Falar por voz" aria-label="Falar por voz">🎙</button>
+              <button class="send-btn" id="sendBtn" aria-label="Enviar mensagem">↑</button>
+            </div>
+          </div>
+        </div>
+        <p class="disclaimer">A Yummiko é uma demonstração. Ela não usa uma IA conectada à internet.</p>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="script.js"></script>
+</body>
+</html>

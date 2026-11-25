@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090914">
+<title>Yummiko — Assistente Virtual</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="logo">✦</span> Yummiko</div>
+    <button class="primary" id="newChat">＋ Yummiko conversa</button>
+    <p class="section-label">FERRAMENTAS</p>
+    <button class="nav" data-command="Que horas são?">◷ <span>Horário</span></button>
+    <button class="nav" data-command="Que dia é hoje?">▦ <span>Calendário</span></button>
+    <button class="nav" id="customOpen">⌘ <span>Comandos personalizados</span></button>
+    <button class="nav" id="voiceSettingsOpen">🎙 <span>Configurações de voz</span></button>
+    <div class="sidebar-foot"><i></i> Assistente pronta <small>HTML · CSS · JavaScript</small></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="menu" id="menu" aria-label="Menu">☰</button>
+      <div class="mobile-brand">✦ Yummiko</div>
+      <span class="online"><i></i> Disponível neste dispositivo</span>
+    </header>
+
+    <section class="chat" id="chat">
+      <div class="welcome" id="welcome">
+        <div class="hero-logo">✦</div>
+        <p class="eyebrow">SUA ASSISTENTE PESSOAL</p>
+        <h1>Olá! Como posso <em>ajudar?</em></h1>
+        <p class="intro">Muito prazer! Sou a Yummiko, sua assistente pessoal, posso te ajudar por texto e com 3 opções de vozes, sabia?</p>
+        <div class="cards">
+          <button class="card" data-command="Que horas são?"><b>◷</b><span><strong>Ver as horas</strong><small>Consulte o horário atual</small></span><i>↗</i></button>
+          <button class="card" data-command="Me conte uma curiosidade"><b>✧</b><span><strong>Curiosidade</strong><small>Descubra algo interessante</small></span><i>↗</i></button>
+          <button class="card" data-command="Ajuda"><b>⌘</b><span><strong>Ver comandos</strong><small>Conheça minhas funções</small></span><i>↗</i></button>
+        </div>
+      </div>
+      <div class="messages" id="messages" aria-live="polite"></div>
+    </section>
+
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea id="input" rows="1" placeholder="Converse com a Yummiko..." aria-label="Mensagem"></textarea>
+        <div class="composer-bottom">
+          <span class="hint">Enter envia · Shift + Enter quebra linha</span>
+          <div class="controls">
+            <button class="tool" id="voiceToggle" title="Ativar/desativar resposta falada" aria-label="Voz da Yummiko">🔊</button>
+            <button class="tool mic" id="mic" title="Reconhecimento de voz" aria-label="Falar">🎙</button>
+            <button class="send" id="send" aria-label="Enviar">↑</button>
+          </div>
+        </div>
+      </div>
+      <p class="note">A voz depende das opções disponíveis no seu navegador e dispositivo.</p>
+    </div>
+  </main>
+</div>
+
+<!-- Modal comandos -->
+<div class="modal-backdrop" id="commandsModal">
+  <section class="modal">
+    <header><div><h2>Comandos personalizados</h2><p>Crie atalhos com uma frase e uma ação.</p></div><button class="close" data-close="commandsModal">×</button></header>
+    <label for="trigger">Frase do comando</label>
+    <input id="trigger" placeholder="Ex.: abrir meu site">
+    <label for="action">Ação (URL ou texto de resposta)</label>
+    <input id="action" placeholder="Ex.: https://example.com ou Olá!">
+    <label for="actionType">Tipo de ação</label>
+    <select id="actionType"><option value="url">Abrir endereço/site</option><option value="reply">Responder com texto</option><option value="search">Pesquisar no Google</option></select>
+    <div class="modal-actions"><button class="primary" id="saveCommand">Salvar comando</button></div>
+    <div class="saved-commands" id="savedCommands"></div>
+  </section>
+</div>
+
+<!-- Modal voz -->
+<div class="modal-backdrop" id="voiceModal">
+  <section class="modal">
+    <header><div><h2>Configurações de voz</h2><p>Escolha a voz e ajuste o jeito de falar.</p></div><button class="close" data-close="voiceModal">×</button></header>
+    <label for="voiceSelect">Voz disponível no navegador</label>
+    <select id="voiceSelect"></select>
+    <label for="rate">Velocidade <span id="rateValue">1.0×</span></label>
+    <input id="rate" type="range" min="0.7" max="1.25" step="0.05" value="1">
+    <label for="pitch">Tom <span id="pitchValue">1.0</span></label>
+    <input id="pitch" type="range" min="0.75" max="1.25" step="0.05" value="1">
+    <div class="modal-actions"><button class="primary" id="testVoice">Testar voz</button></div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<script src="script.js"></script>
+</body>
+</html>
