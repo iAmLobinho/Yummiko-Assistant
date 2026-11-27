@@ -37,14 +37,16 @@ A Yummiko foi desenvolvida para funcionar em navegadores modernos de computadore
 - A consulta do clima e a pesquisa na web precisam de conexão com a internet.
 - Os lembretes são armazenados localmente e dependem da execução da página para serem verificados.
 
-# 📂 Estrutura do projeto
+# 📂 Estrutura do projeto principal
 Yummiko-Assistant/
 ( arquivos backup não inclusvo )
 ```
 ├── index.html
+├── preload.js
+├── electron.js
 ├── style.css
 ├── script.js
-└── README.md
+└── database.js
 ```
 # 🔒 Privacidade
 
