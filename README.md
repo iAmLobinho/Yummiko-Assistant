@@ -4,6 +4,19 @@ A Yummiko é uma assistente virtual desenvolvida com HTML5, CSS3 e JavaScript, c
 
 O projeto busca oferecer uma experiência simples, prática e intuitiva, sem necessidade de avatar ou personagem visual.
 
+# 🖥️ Imagens do projeto
+<table align="center">
+  <tr>
+    <td align="center"><img src="https://i.imgur.com/gVVUg9O.png" alt="Menu lateral" height="480"></td>
+    <td align="center"><img src="https://i.imgur.com/QWGlQbp.png" alt="Tela inicial" height="480"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Menu de ferramentas</b></td>
+    <td align="center"><b>Tela inicial</b></td>
+  </tr>
+</table>
+
+
 # ✨ Funcionalidades
 
 - 🎙️ Reconhecimento de voz: permite interagir com a assistente por comandos falados.
@@ -24,14 +37,16 @@ A Yummiko foi desenvolvida para funcionar em navegadores modernos de computadore
 - A consulta do clima e a pesquisa na web precisam de conexão com a internet.
 - Os lembretes são armazenados localmente e dependem da execução da página para serem verificados.
 
-# 📂 Estrutura do projeto
+# 📂 Estrutura do projeto principal
 Yummiko-Assistant/
 ( arquivos backup não inclusvo )
 ```
 ├── index.html
+├── preload.js
+├── electron.js
 ├── style.css
 ├── script.js
-└── README.md
+└── database.js
 ```
 # 🔒 Privacidade
 
