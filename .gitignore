@@ -147,3 +147,15 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+build/yummiko.jpg
+database.js
+electron.js
+ext/backup/26_11_2026/backupgp_script.js
+ext/backup/database/26_11_2026/backugp_database.js
+package-lock.json
+package.json
+backend/database.js
+electron.js
+package-lock.json
+package.json
+backend/database.js

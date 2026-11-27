@@ -1,12 +1,70 @@
 const $ = id => document.getElementById(id);
 const input = $('input'), messages = $('messages'), welcome = $('welcome');
 let voices = [], recognition = null, listening = false;
-let voiceEnabled = localStorage.getItem('yummiko-voice') !== 'off';
-let customCommands = JSON.parse(localStorage.getItem('yummiko-commands') || '[]');
+let voiceEnabled = true, customCommands = [], reminders = [], savedVoiceName = null, conversaPromise = null;
+
+// ===== Banco de dados =====
+// No Electron: usa o SQLite (window.yummiko.db, definido no preload.js).
+// No navegador comum: usa o LocalStorage como plano B, com as mesmas funções.
+function criarBancoLocal(){
+  const ler=k=>JSON.parse(localStorage.getItem(k)||'[]');
+  const gravar=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+  const comIds=k=>{const l=ler(k);let mudou=false;l.forEach((x,i)=>{if(x.id==null){x.id=Date.now()+i;mudou=true}});if(mudou)gravar(k,l);return l};
+  return {
+    settings:{
+      get:async k=>localStorage.getItem('yummiko-'+k),
+      set:async(k,v)=>{localStorage.setItem('yummiko-'+k,String(v));return true}
+    },
+    commands:{
+      list:async()=>comIds('yummiko-commands'),
+      add:async d=>{const l=comIds('yummiko-commands');if(l.some(c=>c.trigger.toLowerCase()===d.trigger.toLowerCase()))throw Error('Já existe um comando com essa frase.');const n={...d,id:Date.now()};l.push(n);gravar('yummiko-commands',l);return n},
+      remove:async id=>{gravar('yummiko-commands',ler('yummiko-commands').filter(c=>c.id!==id));return true}
+    },
+    reminders:{
+      list:async()=>comIds('yummiko-reminders'),
+      add:async d=>{const l=comIds('yummiko-reminders');const n={text:d.text,when:d.when,notified:false,id:Date.now()};l.push(n);gravar('yummiko-reminders',l);return n},
+      markNotified:async id=>{gravar('yummiko-reminders',ler('yummiko-reminders').map(r=>r.id===id?{...r,notified:true}:r));return true},
+      remove:async id=>{gravar('yummiko-reminders',ler('yummiko-reminders').filter(r=>r.id!==id));return true}
+    },
+    chat:{newConversation:async()=>1,addMessage:async()=>true}
+  };
+}
+const db = window.yummiko?.db || criarBancoLocal();
+const msgErro = e => String(e?.message||e).replace(/^Error invoking remote method '[^']*':\s*(Error:\s*)?/,'');
+const guardar = (chave,valor) => db.settings.set(chave,valor).catch(()=>toast('Não foi possível salvar a configuração.'));
+const garantirConversa = () => (conversaPromise ??= db.chat.newConversation());
+function salvarMensagem(role,content){garantirConversa().then(id=>db.chat.addMessage({conversationId:id,role,content})).catch(()=>{})}
+
+// Copia os dados antigos do LocalStorage para o banco (roda uma única vez).
+async function migrarLocalStorage(){
+  if(!window.yummiko?.db||(await db.settings.get('migrou_localstorage'))==='1')return;
+  try{
+    for(const c of JSON.parse(localStorage.getItem('yummiko-commands')||'[]')){try{await db.commands.add(c)}catch(_){}}
+    for(const r of JSON.parse(localStorage.getItem('yummiko-reminders')||'[]')){try{const n=await db.reminders.add({text:r.text,when:r.when});if(r.notified)await db.reminders.markNotified(n.id)}catch(_){}}
+    const voz=localStorage.getItem('yummiko-voice');if(voz)await db.settings.set('voice',voz);
+  }catch(_){}
+  await db.settings.set('migrou_localstorage','1');
+}
+// Carrega tudo do banco quando o app abre.
+async function carregarDados(){
+  try{
+    await migrarLocalStorage();
+    customCommands=await db.commands.list();
+    reminders=await db.reminders.list();
+    voiceEnabled=(await db.settings.get('voice'))!=='off';
+    savedVoiceName=await db.settings.get('voice_name');
+    const rate=await db.settings.get('voice_rate'),pitch=await db.settings.get('voice_pitch');
+    if(rate){$('rate').value=rate;$('rateValue').textContent=Number(rate).toFixed(2)+'×'}
+    if(pitch){$('pitch').value=pitch;$('pitchValue').textContent=Number(pitch).toFixed(2)}
+    $('voiceToggle').classList.toggle('active',voiceEnabled);
+    if('speechSynthesis' in window)loadVoices();
+    renderReminders();checkReminders();
+  }catch(e){toast('Não foi possível carregar os dados salvos.')}
+}
 
 function toast(message){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.remove('show'),2400)}
 function addMessage(text,who){
-  welcome.hidden=true;
+  welcome.hidden=true;salvarMensagem(who==='user'?'user':'assistant',text);
   const article=document.createElement('article');article.className=`message ${who}`;
   const avatar=document.createElement('div');avatar.className='avatar';avatar.textContent=who==='user'?'EU':'✦';
   const content=document.createElement('div');content.className='message-content';
@@ -80,13 +138,13 @@ $('send').addEventListener('click',send);
 input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
 input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,150)+'px'});
 document.querySelectorAll('[data-command]').forEach(btn=>btn.addEventListener('click',()=>{input.value=btn.dataset.command;send();$('sidebar').classList.remove('open')}));
-$('newChat').addEventListener('click',()=>{messages.replaceChildren();welcome.hidden=false;$('sidebar').classList.remove('open');input.focus()});
+$('newChat').addEventListener('click',()=>{conversaPromise=null;messages.replaceChildren();welcome.hidden=false;$('sidebar').classList.remove('open');input.focus()});
 $('menu').addEventListener('click',()=>$('sidebar').classList.toggle('open'));
 
 // Speech synthesis voices, voice selection and adjustable speech characteristics.
 function loadVoices(){
   voices=speechSynthesis.getVoices();
-  const select=$('voiceSelect'),previous=select.value;
+  const select=$('voiceSelect'),previous=select.value||savedVoiceName;
   select.replaceChildren();
   const pt=voices.filter(v=>v.lang.toLowerCase().startsWith('pt'));
   (pt.length?pt:voices).forEach(v=>{const option=document.createElement('option');option.value=v.name;option.textContent=`${v.name} — ${v.lang}${v.default?' (padrão)':''}`;select.append(option)});
@@ -94,10 +152,13 @@ function loadVoices(){
 }
 if('speechSynthesis' in window){loadVoices();speechSynthesis.addEventListener?.('voiceschanged',loadVoices)}
 $('voiceToggle').classList.toggle('active',voiceEnabled);
-$('voiceToggle').addEventListener('click',()=>{voiceEnabled=!voiceEnabled;localStorage.setItem('yummiko-voice',voiceEnabled?'on':'off');$('voiceToggle').classList.toggle('active',voiceEnabled);toast(voiceEnabled?'Resposta por voz ativada':'Resposta por voz desativada');if(!voiceEnabled&&'speechSynthesis'in window)speechSynthesis.cancel()});
+$('voiceToggle').addEventListener('click',()=>{voiceEnabled=!voiceEnabled;guardar('voice',voiceEnabled?'on':'off');$('voiceToggle').classList.toggle('active',voiceEnabled);toast(voiceEnabled?'Resposta por voz ativada':'Resposta por voz desativada');if(!voiceEnabled&&'speechSynthesis'in window)speechSynthesis.cancel()});
 $('voiceSettingsOpen').addEventListener('click',()=>{$('voiceModal').classList.add('show');loadVoices()});
 $('rate').addEventListener('input',()=>$('rateValue').textContent=Number($('rate').value).toFixed(2)+'×');
 $('pitch').addEventListener('input',()=>$('pitchValue').textContent=Number($('pitch').value).toFixed(2));
+$('voiceSelect').addEventListener('change',()=>guardar('voice_name',$('voiceSelect').value));
+$('rate').addEventListener('change',()=>guardar('voice_rate',$('rate').value));
+$('pitch').addEventListener('change',()=>guardar('voice_pitch',$('pitch').value));
 $('testVoice').addEventListener('click',()=>speak('Olá! Eu sou a Yummiko, sua assistente virtual. Como posso ajudar você hoje?'));
 
 // Speech recognition with graceful support detection.
@@ -111,7 +172,7 @@ if(SpeechRecognition){
   $('mic').addEventListener('click',()=>{if(listening){recognition.stop();return}try{recognition.start()}catch(_){toast('O reconhecimento já está ativo.')}});
 }else{$('mic').addEventListener('click',()=>toast('Reconhecimento de voz não suportado. Experimente Chrome ou Edge.'))}
 
-// Custom commands CRUD, stored in browser localStorage.
+// Comandos personalizados (salvos no banco de dados).
 function renderCommands(){
   const list=$('savedCommands');list.replaceChildren();
   if(!customCommands.length){const empty=document.createElement('p');empty.className='hint';empty.textContent='Nenhum comando salvo ainda.';list.append(empty);return}
@@ -119,17 +180,17 @@ function renderCommands(){
     const row=document.createElement('div');row.className='command-row';
     const info=document.createElement('div');info.textContent=command.trigger;
     const detail=document.createElement('small');detail.textContent=(command.type==='url'?'Abrir site':command.type==='search'?'Pesquisa Google':'Resposta')+' · '+command.action;info.append(detail);
-    const del=document.createElement('button');del.className='delete-command';del.textContent='Excluir';del.addEventListener('click',()=>{customCommands.splice(index,1);persistCommands();renderCommands()});
+    const del=document.createElement('button');del.className='delete-command';del.textContent='Excluir';del.addEventListener('click',async()=>{try{await db.commands.remove(command.id);customCommands.splice(index,1);renderCommands()}catch(e){toast(msgErro(e))}});
     row.append(info,del);list.append(row);
   });
 }
-function persistCommands(){localStorage.setItem('yummiko-commands',JSON.stringify(customCommands))}
 $('customOpen').addEventListener('click',()=>{$('commandsModal').classList.add('show');renderCommands()});
-$('saveCommand').addEventListener('click',()=>{
+$('saveCommand').addEventListener('click',async()=>{
   const trigger=$('trigger').value.trim(),action=$('action').value.trim(),type=$('actionType').value;
   if(!trigger||!action){toast('Preencha a frase e a ação.');return}
   if(customCommands.some(c=>c.trigger.toLowerCase()===trigger.toLowerCase())){toast('Já existe um comando com essa frase.');return}
-  customCommands.push({trigger,action,type});persistCommands();renderCommands();$('trigger').value='';$('action').value='';toast('Comando personalizado salvo!');
+  try{customCommands.push(await db.commands.add({trigger,action,type}))}catch(e){toast(msgErro(e));return}
+  renderCommands();$('trigger').value='';$('action').value='';toast('Comando personalizado salvo!');
 });
 document.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click',()=>$(btn.dataset.close).classList.remove('show')));
 document.querySelectorAll('.modal-backdrop').forEach(backdrop=>backdrop.addEventListener('click',e=>{if(e.target===backdrop)backdrop.classList.remove('show')}));
@@ -175,7 +236,6 @@ $('getWeather')?.addEventListener('click', async ()=>{
 });
 
 // Agenda local, persistida no navegador. Notificações dependem da permissão do usuário.
-let reminders=JSON.parse(localStorage.getItem('yummiko-reminders')||'[]');
 function renderReminders(){
   const list=$('reminderList');if(!list)return;list.replaceChildren();
   reminders.sort((a,b)=>a.when.localeCompare(b.when));
@@ -184,25 +244,24 @@ function renderReminders(){
     const row=document.createElement('div');row.className='command-row';
     const info=document.createElement('div');info.textContent=r.text;
     const detail=document.createElement('small');detail.textContent=new Date(r.when).toLocaleString('pt-BR');info.append(detail);
-    const del=document.createElement('button');del.className='delete-command';del.textContent='Excluir';del.addEventListener('click',()=>{reminders.splice(i,1);saveReminders();renderReminders()});
+    const del=document.createElement('button');del.className='delete-command';del.textContent='Excluir';del.addEventListener('click',async()=>{try{await db.reminders.remove(r.id);reminders.splice(i,1);renderReminders()}catch(e){toast(msgErro(e))}});
     row.append(info,del);list.append(row);
   });
 }
-function saveReminders(){localStorage.setItem('yummiko-reminders',JSON.stringify(reminders))}
 $('addReminder')?.addEventListener('click',async()=>{
   const text=$('reminderText').value.trim(),when=$('reminderDate').value;
   if(!text||!when){toast('Informe o compromisso e a data.');return;}
   if(new Date(when).getTime()<=Date.now()){toast('Escolha uma data futura.');return;}
-  reminders.push({text,when,notified:false});saveReminders();renderReminders();$('reminderText').value='';$('reminderDate').value='';
+  try{reminders.push(await db.reminders.add({text,when}))}catch(e){toast(msgErro(e));return}
+  renderReminders();$('reminderText').value='';$('reminderDate').value='';
   if('Notification'in window&&Notification.permission==='default'){
     try{await Notification.requestPermission()}catch(_){/* indisponível */}
   }
   reply(`Lembrete salvo: ${text}, em ${new Date(when).toLocaleString('pt-BR')}.`);
 });
 function checkReminders(){
-  const now=Date.now();let changed=false;
-  reminders.forEach(r=>{if(!r.notified&&new Date(r.when).getTime()<=now){r.notified=true;changed=true;if('Notification'in window&&Notification.permission==='granted')new Notification('Yummiko — Lembrete',{body:r.text});else toast('Lembrete: '+r.text);}});
-  if(changed)saveReminders();
+  const now=Date.now();
+  reminders.forEach(r=>{if(!r.notified&&new Date(r.when).getTime()<=now){r.notified=true;db.reminders.markNotified(r.id).catch(()=>{});if('Notification'in window&&Notification.permission==='granted')new Notification('Yummiko — Lembrete',{body:r.text});else toast('Lembrete: '+r.text);}});
 }
 setInterval(checkReminders,15000);checkReminders();
 
@@ -250,3 +309,6 @@ processCommand=function(raw){
   }
   return originalProcessCommand(raw);
 };
+
+// Carrega os dados salvos assim que o app abre.
+carregarDados();
